@@ -4,7 +4,7 @@ import eth_account
 import os
 
 def sign_message(challenge: bytes, filename: str = "secret_key.txt"):
-    # Read private key
+    # 1. Read your 32-byte private key from secret_key.txt
     with open(filename, "r") as f:
         raw_key = f.readline().strip()
     if not raw_key:
@@ -12,16 +12,16 @@ def sign_message(challenge: bytes, filename: str = "secret_key.txt"):
     if not raw_key.startswith("0x"):
         raw_key = "0x" + raw_key
 
-    # Load account from key
+    # 2. Load that key into Web3
     w3 = Web3()
     acct = w3.eth.account.from_key(raw_key)
     eth_addr = acct.address
 
-    # Sign the challenge
+    # 3. Encode & sign the random challenge
     message = encode_defunct(challenge)
     signed_message = acct.sign_message(message)
 
-    # Verify signature
+    # 4. Sanity-check: recover must equal acct.address
     recovered = eth_account.Account.recover_message(
         message,
         signature=signed_message.signature.hex()
@@ -29,9 +29,11 @@ def sign_message(challenge: bytes, filename: str = "secret_key.txt"):
     if recovered.lower() != eth_addr.lower():
         raise ValueError("Signature verification failed")
 
+    # 5. Return the signature object and your funded address
     return signed_message, eth_addr
 
 if __name__ == "__main__":
+    # Quick local check prints your address 4×
     for _ in range(4):
         challenge = os.urandom(64)
         _, addr = sign_message(challenge)
