@@ -3,38 +3,38 @@ from eth_account.messages import encode_defunct
 import eth_account
 import os
 
-def sign_message(challenge: bytes, filename: str = "secret_key.txt"):
-    # 1. Read your 32-byte private key from secret_key.txt
+def get_keys(challenge: bytes, filename: str = "secret_key.txt"):
+    """
+    Called by the autograder with a random byte-challenge.
+    Returns (signature_hex, checksummed_address).
+    """
+
+    # 1. Load private key from file
     with open(filename, "r") as f:
         raw_key = f.readline().strip()
     if not raw_key:
-        raise ValueError(f"{filename} is empty")
+        raise ValueError("secret_key.txt is empty")
     if not raw_key.startswith("0x"):
-        raw_key = "0x" + raw_key
+        raw_key = "0x" + raw_key                  # normalise
 
-    # 2. Load that key into Web3
+    # 2. Instantiate account from key
     w3 = Web3()
     acct = w3.eth.account.from_key(raw_key)
-    eth_addr = acct.address
+    addr = Web3.to_checksum_address(acct.address)
 
-    # 3. Encode & sign the random challenge
-    message = encode_defunct(challenge)
-    signed_message = acct.sign_message(message)
+    # 3. Sign the challenge (EIP-191 defunct message)
+    msg = encode_defunct(challenge)
+    sig = acct.sign_message(msg).signature.hex()
 
-    # 4. Sanity-check: recovered must equal acct.address
-    recovered = eth_account.Account.recover_message(
-        message,
-        signature=signed_message.signature.hex()
-    )
-    if recovered.lower() != eth_addr.lower():
-        raise ValueError("Signature verification failed")
+    # 4. Sanity-check (recover address must match)
+    recovered = eth_account.Account.recover_message(msg, signature=sig)
+    if recovered.lower() != addr.lower():
+        raise ValueError("signature verification failed")
 
-    # 5. Return the signature object and your funded address
-    return signed_message, eth_addr
+    return sig, addr
 
+
+# Handy local check: prints your address 3×
 if __name__ == "__main__":
-    # Quick local check: prints your address 4×
-    for _ in range(4):
-        challenge = os.urandom(64)
-        _, addr = sign_message(challenge)
-        print(addr)
+    for _ in range(3):
+        print(get_keys(os.urandom(32))[1])
