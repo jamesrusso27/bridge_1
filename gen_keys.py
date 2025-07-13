@@ -3,48 +3,43 @@ from eth_account.messages import encode_defunct
 import eth_account
 import os
 
-
-def sign_message(challenge: bytes, filename: str = "secret_key.txt"):
+def sign_message(challenge, filename="secret_key.txt"):
     """
-    challenge – random byte string provided by the autograder
-    filename  – path to a file that holds ONE line: your 32-byte private key
-                (64 hex chars) with or without the 0x prefix.
-
-    Returns (signed_message, address).
-
-    The address must hold testnet funds on both BSC and Avalanche.
+    challenge - byte string
+    filename - filename of the file that contains your account secret key
+    To pass the tests, your signature must verify, and the account you use
+    must have testnet funds on both the bsc and avalanche test networks.
     """
-
-    # --- 1. Read & normalise the private key -------------------------------
+    # This code will read your "sk.txt" file
+    # If the file is empty, it will raise an exception
     with open(filename, "r") as f:
-        raw_key = f.readline().strip()
-    if not raw_key:
-        raise ValueError(f"{filename} is empty")
-    if not raw_key.startswith("0x"):
-        raw_key = "0x" + raw_key
+        key = f.readlines()
+    assert(len(key) > 0), "Your account secret_key.txt is empty"
 
-    # --- 2. Instantiate the account ----------------------------------------
     w3 = Web3()
-    acct = w3.eth.account.from_key(raw_key)
-    eth_addr = w3.to_checksum_address(acct.address)
-
-    # --- 3. Sign the challenge (EIP-191 / “defunct”) -----------------------
     message = encode_defunct(challenge)
-    signed_message = acct.sign_message(message)
 
-    # --- 4. Verify (defensive check) ---------------------------------------
-    recovered = eth_account.Account.recover_message(
-        message,
-        signature=signed_message.signature.hex()
-    )
-    assert recovered.lower() == eth_addr.lower(), "Signature verification failed"
+    # TODO recover your account information for your private key and sign the given challenge
+    # Use the code from the signatures assignment to sign the given challenge
+    
+    # Get the private key from the file (strip whitespace)
+    private_key = key[0].strip()
+    
+    # Create account from private key
+    account = eth_account.Account.from_key(private_key)
+    eth_addr = account.address
+    
+    # Sign the message
+    signed_message = account.sign_message(message)
 
-    # --- 5. Return ----------------------------------------------------------
+    assert eth_account.Account.recover_message(message,signature=signed_message.signature.hex()) == eth_addr, f"Failed to sign message properly"
+
+    #return signed_message, account associated with the private key
     return signed_message, eth_addr
 
 
 if __name__ == "__main__":
-    # simple sanity-check: prints the address 4×
-    for _ in range(4):
-        sig, addr = sign_message(os.urandom(64))
-        print(addr)
+    for i in range(4):
+        challenge = os.urandom(64)
+        sig, addr= sign_message(challenge=challenge)
+        print( addr )
